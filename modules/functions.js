@@ -1,3 +1,4 @@
+const Discord = require("discord.js");
 module.exports = (client) => {
   /**
    * This is a very basic permission system for commands which uses "levels"
@@ -36,7 +37,40 @@ module.exports = (client) => {
     });
     return returnObject;
   };
-
+  /**
+   * Sends an embed with parameters to the given channel.
+   * @constructor
+   * @param {Channel} channel The channel which the Embed should be sent to
+   * @param {String} title The title for the Embed
+   * @param {String} description The description for the Embed
+   * @param {Color} color The color for the Embed
+   * @returns {Promise} Resolves to the sent message
+   */
+  client.coloredEmbed = (channel, title, description, color) => {
+    return new Promise((resolve, reject) => {
+      channel.send(new Discord.RichEmbed({
+        "title": title,
+        "description": description,
+        "color": color
+      })).then(resolve).catch(reject);
+    });
+  };
+  /**
+   * Sends an Embed to the given Channel describing a success - Has title 'Success' and uses discord's Online color
+   * @constructor
+   * @param {Channel} channel The channel which the Embed should be sent to
+   * @param {String} description The description for the Embed
+   * @returns {Promise} Resolves to the sent message
+   */
+  client.successEmbed = (channel, description) => client.coloredEmbed(channel, "Success", description, 0x43B581);
+  /**
+   * Sends an Embed to the given Channel describing an error - Has title 'Error' and uses discord's DND color
+   * @constructor
+   * @param {Channel} channel The channel which the Embed should be sent to
+   * @param {String} description The description for the Embed
+   * @returns {Promise} Resolves to the sent message
+   */
+  client.errorEmbed = (channel, description) => client.coloredEmbed(channel, "Error", description, 0xF04747);
   /**
    * A simple way to grab a single reply, from the user that initiated
    * the command. Useful to get "precisions" on certain things...
