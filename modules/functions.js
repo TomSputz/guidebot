@@ -70,6 +70,40 @@ module.exports = (client) => {
       });
     });
   };
+  /**
+   * Prompt the user to react yes/no to a question
+   * @constructor
+   * @param {Channel} context The channel to send the question to
+   * @param {Embed|String} question The question to send to the channel
+   * @param {Number} [timeout=60000] How long the question should stay alive
+   * @param {User} [subject] The user who is allowed to respond to the question
+   * @param {Array.<EmojiResolvable>} reacts The emojis used to respond with [True, False]
+   * @returns {Promise.<Boolean|Array.<Boolean,User>|Error} Resolves to user's answer. If no subject is defined, resolves to array containing response as string and author. If the question times out, it will throw a 'time' error
+   */
+  // TODO: If we find a good way to extend the Discord classes, make this Channel.awaitBooleanReply
+  client.booleanPrompt = (context, question, timeout = 60000, subject, reacts = ["✅", "❌"]) => {
+    return new Promise((resolve, reject) => {
+      if (context.constructor.name === "Message") {
+        if (!(subject)) subject = context.author;
+        context = context.channel;
+      }
+      context.send(question).then(prompt => {
+        prompt.reactives = [];
+        const collector = prompt.createReactionCollector((reaction, user) => !(user.bot) && reaction.message.reactives.includes(reaction) && (subject ? [subject, subject.id].includes(user.id) : true), {
+          maxEmojis: 1,
+          time: timeout
+        });
+        collector.on("collect", (reaction, user) => {
+          return resolve(subject ? Boolean(prompt.reactives.indexOf(reaction)) : [Boolean(prompt.reactives.indexOf(reaction)), user]);
+        });
+        collector.on("end", (reacts, reason) => (prompt.deletable && prompt.delete()) || (reason == "time" && reject(new Error(reason))));
+        prompt.react(reacts[0]).then(r => {
+          prompt.reactives.unshift(r);
+          prompt.react(reacts[1]).then(r => prompt.reactives.unshift(r)).catch(() => NaN);
+        }).catch(() => NaN);
+      });
+    });
+  };
   /*
       MESSAGE CLEAN FUNCTION
 
