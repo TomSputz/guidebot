@@ -98,6 +98,19 @@ module.exports = (client) => {
     });
   };
   /**
+   * Gets user's nickname given a context - if a nickname is not set, the username wil be returned
+   * @constructor
+   * @param {Guild|Message|TextChannel|VoiceChannel|MessageReaction} context The context to check the nickname in
+   * @param {User} [user=client.user] The user who's name to check
+   * @returns {String} The nickname of the user in the given context
+   */
+  client.getNickname = (context, user = client.user) => {
+    if (context.constructor.name == "MessageReaction") context = context.message;
+    if (context.constructor.name == "Message" || "TextChannel" || "VoiceChannel") context = context.guild;
+    context = context.members.get(user.id).nickname;
+    return context ? context : user.username;
+  };
+  /**
    * "Clean" removes @everyone pings, as well as tokens, and makes code blocks
    * escaped so they're shown more easily. As a bonus it resolves promises
    * and stringifies objects!
