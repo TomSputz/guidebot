@@ -38,6 +38,24 @@ module.exports = (client) => {
     return returnObject;
   };
   /**
+   * Converts a string or number to blocktext. Input must only be one character
+   * 
+   * Uses the client.config.emojiConvertReference (Set in config.js) to convert
+   * any characters that exist in that file, and has a fallback for
+   * alphabetical and numerical characters
+   * @constructor
+   * @param {String|Number} string The value to be converted
+   * @returns {String} A blocktext version of the passed string
+   */
+  client.toEmojiString = (input) => {
+    if (input.toString()) input = input.toString();
+    if (client.config.emojiConvertReference && client.config.emojiConvertReference[input]) return client.config.emojiConvertReference[input];
+    if (input.length > 1) return new Error("Input too long");
+    if (parseInt(input)) return [":zero:",":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:"][input];
+    if (/[a-z|A-Z]/.test(input)) return input.replace(/[a-z|A-Z]/, i => `:regional_indicator_${i.toLowerCase()}:`);
+    return input;
+  };
+  /**
    * Sends an embed with parameters to the given channel.
    * @constructor
    * @param {Channel} channel The channel which the Embed should be sent to
