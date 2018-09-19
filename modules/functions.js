@@ -16,10 +16,8 @@ module.exports = (client) => {
 
     while (permOrder.length) {
       const currentLevel = permOrder.shift();
-      if (message.guild && currentLevel.guildOnly) continue;
-      if (currentLevel.check(message)) {
-        permlvl = currentLevel.level;
-        break;
+      if (!(message.guild) && currentLevel.guildOnly) continue;
+      if (currentLevel.check(message)) permlvl = currentLevel.level;
       }
     }
     return permlvl;
