@@ -51,7 +51,7 @@ module.exports = (client) => {
     if (input.toString()) input = input.toString();
     if (client.config.emojiConvertReference && client.config.emojiConvertReference[input]) return client.config.emojiConvertReference[input];
     if (input.length > 1) return new Error("Input too long");
-    if (parseInt(input)) return [":zero:",":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:"][input];
+    if (parseInt(input)) return [":zero:", ":one:", ":two:", ":three:", ":four:", ":five:", ":six:", ":seven:", ":eight:", ":nine:"][input];
     if (/[a-z|A-Z]/.test(input)) return input.replace(/[a-z|A-Z]/, i => `:regional_indicator_${i.toLowerCase()}:`);
     return input;
   };
@@ -90,10 +90,49 @@ module.exports = (client) => {
    */
   client.errorEmbed = (channel, description) => client.coloredEmbed(channel, "Error", description, 0xF04747);
   /**
+   * Prompts user to choose string from array using reactions
+   * @constructor
+   * @param {Channel|Message} context The channel to send the question to. If message is passed and no subject is defined, the author will be used as subject
+   * @param {String[]} options An array of strings representing the choices for the user
+   * @param {(Embed|String)} [description] Used as message to send to channel, will be given reactions up to the number of strings in [options]. Should explain what each option mean
+   * @param {Number} [timeout=60000] How long to wait for a response in milliseconds
+   * @param {(User|String)} [subject] Only allow this user to respond to the prompt
+   * @returns {Promise.<String|Error>} Resolves to the string the user chose
+   */
+  client.multiplePrompt = (context, options, description = 0, timeout = 60000, subject) => {
+    return new Promise((resolve, reject) => {
+      if (context.constructor.name === "Message") {
+        if (!(subject)) subject = context.author;
+        context = context.channel;
+      }
+      if (options.length == 0) return reject(new Error("No options"));
+      if (options.length == 1) return resolve(options[0]);
+      if (options.length > 9) return reject(new Error("Too many options"));
+      context.send(["Embed", "String"].includes(description.constructor.name) ? description : new Discord.RichEmbed({
+        "title": "Multiple Choice",
+        "description": "React to this message to choose.\n\n" + options.map(i => client.toEmojiString(options.indexOf(i) + 1) + " " + i).join("\n")
+      })).then(async (prompt) => {
+        prompt.reactives = [];
+        const collector = prompt.createReactionCollector((reaction, user) => !(user.bot) && reaction.message.reactives.includes(reaction) && (subject ? [subject, subject.id].includes(user.id) : true), {
+          maxEmojis: 1,
+          time: timeout
+        });
+        collector.on("collect", r => {
+          if (r.deletable) r.message.delete();
+          if (r.emoji.name == "❌") return reject(new Error("User rejected"));
+          resolve(options[parseInt(r.emoji.identifier.charAt(0)) - 1]);
+        });
+        collector.on("end", (messages, reason) => (prompt.deletable && prompt.delete()) || (reason == "time" && reject(new Error(reason))));
+        await prompt.react("❌").then(r => r.message.reactives.push(r)).catch(() => NaN);
+        for (let i = 0; i < options.length; i++) await prompt.react((i + 1) + "%E2%83%A3").then(r => r.message.reactives.push(r)).catch(() => NaN);
+      });
+    });
+  };
+  /**
    * A simple way to grab a single reply, from the user that initiated
    * the command. Useful to get "precisions" on certain things...
    * @constructor
-   * @param {Channel} context The channel to send the question to. If message is passed and no subject is defined, the author will be used as subject
+   * @param {Channel|Message} context The channel to send the question to. If message is passed and no subject is defined, the author will be used as subject
    * @param {Embed|String} question The question to send to the channel
    * @param {Number} [timeout=60000] How long to wait for a response in milliseconds
    * @param {User} [subject] If non-falsy, only allow this user to respond to the given question
@@ -118,7 +157,7 @@ module.exports = (client) => {
   /**
    * Prompt the user to react yes/no to a question
    * @constructor
-   * @param {Channel} context The channel to send the question to
+   * @param {Channel|Message} context The channel to send the question to
    * @param {Embed|String} question The question to send to the channel
    * @param {Number} [timeout=60000] How long the question should stay alive
    * @param {User} [subject] The user who is allowed to respond to the question
