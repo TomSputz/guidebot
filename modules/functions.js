@@ -1,40 +1,35 @@
 module.exports = (client) => {
-
-  /*
-    PERMISSION LEVEL FUNCTION
-
-    This is a very basic permission system for commands which uses "levels"
-    "spaces" are intentionally left black so you can add them if you want.
-    NEVER GIVE ANYONE BUT OWNER THE LEVEL 10! By default this can run any
-    command including the VERY DANGEROUS `eval` and `exec` commands!
-
-    */
+  /**
+   * This is a very basic permission system for commands which uses "levels"
+   * "spaces" are intentionally left black so you can add them if you want.
+   * @constructor
+   * @param {Message} message The message to check for permlevel
+   * @returns {Number} The permission level the
+   */
   client.permlevel = message => {
     let permlvl = 0;
 
-    const permOrder = client.config.permLevels.slice(0).sort((p, c) => p.level < c.level ? 1 : -1);
+    const permOrder = client.config.permLevels.slice(0).sort((p, c) => p.level > c.level ? 1 : -1);
 
     while (permOrder.length) {
       const currentLevel = permOrder.shift();
       if (!(message.guild) && currentLevel.guildOnly) continue;
       if (currentLevel.check(message)) permlvl = currentLevel.level;
-      }
     }
     return permlvl;
   };
-
-  /*
-    GUILD SETTINGS FUNCTION
-
-    This function merges the default settings (from config.defaultSettings) with any
-    guild override you might have for particular guild. If no overrides are present,
-    the default settings are used.
-
-    */
-  client.getSettings = (guild) => {
+  /**
+   * This function merges the default settings (from config.defaultSettings) with any
+   * guild override you might have for particular guild. If no overrides are present,
+   * the default settings are used.
+   * @constructor
+   * @param {String} guildid The id of the guild to fetch settings for
+   * @returns {Object} Parsed settings for the guild
+   */
+  client.getSettings = guildid => {
     const defaults = client.config.defaultSettings || {};
-    if (!guild) return defaults;
-    const guildData = client.settings.get(guild) || {};
+    if (!guildid) return defaults;
+    const guildData = client.settings.get(guildid) || {};
     const returnObject = {};
     Object.keys(defaults).forEach((key) => {
       returnObject[key] = guildData[key] ? guildData[key] : defaults[key];
@@ -102,18 +97,20 @@ module.exports = (client) => {
       });
     });
   };
-  /*
-      MESSAGE CLEAN FUNCTION
-
-      "Clean" removes @everyone pings, as well as tokens, and makes code blocks
-      escaped so they're shown more easily. As a bonus it resolves promises
-      and stringifies objects!
-      This is mostly only used by the Eval and Exec commands.
-      */
+  /**
+   * "Clean" removes @everyone pings, as well as tokens, and makes code blocks
+   * escaped so they're shown more easily. As a bonus it resolves promises
+   * and stringifies objects!
+   * @constructor
+   * @param client The client. Used to fetch token to redact
+   * @param text The text to clean
+   * @returns The text, with token removed and mentions broken
+   */
+  // TODO: Remove this function.
   client.clean = async (client, text) => {
     if (text && text.constructor.name == "Promise")
       text = await text;
-    if (typeof evaled !== "string")
+    if (typeof text !== "string")
       text = require("util").inspect(text, {
         depth: 1
       });
@@ -125,24 +122,30 @@ module.exports = (client) => {
 
     return text;
   };
-
+  /**
+   * Loads command using file name. Command file format is demonstrated in ./commands/ping.js
+   * @constructor
+   * @param {String} commandName Name of the js file to load, minus '.js'
+   * @returns {String} false if command loaded, Describes error if not
+   */
   client.loadCommand = (commandName) => {
     try {
       client.logger(`Loading Command: ${commandName}`);
       const props = require(`../commands/${commandName}`);
-      if (props.init) {
-        props.init(client);
-      }
+      if (props.init) props.init(client);
       client.commands.set(props.help.name, props);
-      props.conf.aliases.forEach(alias => {
-        client.aliases.set(alias, props.help.name);
-      });
-      return false;
+      props.conf.aliases.forEach(alias => client.aliases.set(alias, props.help.name));
     } catch (e) {
       return `Unable to load command ${commandName}: ${e}`;
     }
   };
-
+  /**
+   * Unloads command using alias / command name.
+   * @constructor
+   * @param {String} commandName The name of the command to unload
+   * @return {Boolean} false
+   */
+  // TODO: Fix this method. Seems like it doesnt even actually remove the command or aliases from memory
   client.unloadCommand = async (commandName) => {
     let command;
     if (client.commands.has(commandName)) {
@@ -152,9 +155,7 @@ module.exports = (client) => {
     }
     if (!command) return `The command \`${commandName}\` doesn"t seem to exist, nor is it an alias. Try again!`;
 
-    if (command.shutdown) {
-      await command.shutdown(client);
-    }
+    if (command.shutdown) await command.shutdown(client);
     const mod = require.cache[require.resolve(`../commands/${commandName}`)];
     delete require.cache[require.resolve(`../commands/${commandName}.js`)];
     for (let i = 0; i < mod.parent.children.length; i++) {
@@ -173,8 +174,11 @@ module.exports = (client) => {
   // this, a conflict also occurs. KNOWING THIS however, the following 2 methods
   // are, we feel, very useful in code. 
 
-  // <String>.toPropercase() returns a proper-cased string such as: 
-  // "Mary had a little lamb".toProperCase() returns "Mary Had A Little Lamb"
+  /**
+   * {String}.toProperCase will return a string with every word capitalised
+   * @constructor
+   * @return {String} The proper case string ("Mary had a little lamb".toProperCase() returns "Mary Had A Little Lamb")
+   */
   Object.defineProperty(String.prototype, "toProperCase", {
     value: function() {
       return this.replace(/([^\W_]+[^\s-]*) */g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
@@ -183,15 +187,18 @@ module.exports = (client) => {
 
   // <Array>.random() returns a single random element from an array
   // [1, 2, 3, 4, 5].random() can return 1, 2, 3, 4 or 5.
+  /**
+   * {Array}.random will return a random element in an array
+   * @constructor
+   * @return {*} The chosen element ([1, 2, 3, 4, 5].random() can return 1, 2, 3, 4 or 5)
+   */
   Object.defineProperty(Array.prototype, "random", {
     value: function() {
       return this[Math.floor(Math.random() * this.length)];
     }
   });
 
-  // `await client.wait(1000);` to "pause" for 1 second.
-  client.wait = require("util").promisify(setTimeout);
-
+  // TODO: Look into why these haven't just been left default
   // These 2 process methods will catch exceptions and give *more details* about the error and stack trace.
   process.on("uncaughtException", (err) => {
     const errorMsg = err.stack.replace(new RegExp(`${__dirname}/`, "g"), "./");
