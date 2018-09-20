@@ -47,6 +47,7 @@ async function init() {
   client.logger(`Loading a total of ${cmdFiles.length} commands.`);
   cmdFiles.forEach(f => {
     if (!f.endsWith(".js")) return;
+    client.logger(`Loading Command: ${f}`);
     const response = client.loadCommand(f);
     if (response) console.log(response);
   });

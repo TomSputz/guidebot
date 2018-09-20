@@ -1,13 +1,12 @@
-exports.run = async (client, message, args) => {
-  if (!args || args.length < 1) return message.reply("Must provide a command to reload. Derp.");
+exports.run = (client, message, args) => {
+  if (!args || args.length < 1) return client.errorEmbed(message.channel, "Must provide a command to reload. Derp.");
 
-  let response = await client.unloadCommand(args[0]);
-  if (response) return message.reply(`Error Unloading: ${response}`);
-
-  response = client.loadCommand(args[0]);
-  if (response) return message.reply(`Error Loading: ${response}`);
-
-  message.reply(`The command \`${args[0]}\` has been reloaded`);
+  client.unloadCommand(args[0]).then(cmd => {
+    if (cmd instanceof Error) return client.errorEmbed(message.channel, `Error Unloading: ${cmd.message}`);
+    const res = client.loadCommand(cmd);
+    if (res instanceof Error) return client.errorEmbed(message.channel, `Error Loading: ${res.message}`);
+    client.successEmbed(message.channel, `The command \`${cmd}\` has been reloaded`);
+  });
 };
 
 exports.conf = {

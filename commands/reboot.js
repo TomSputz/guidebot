@@ -1,4 +1,7 @@
-exports.run = (client, message) => client.successEmbed(message.channel, "Bot is shutting down.").then(client.commands.forEach(cmd => client.unloadCommand(cmd)) && process.exit(1));
+exports.run = (client, message) => client.successEmbed(message.channel, "Bot is shutting down.").then(() => {
+  client.commands.keyArray().forEach(cmd => client.unloadCommand(cmd));
+  process.exit(1);
+});
 
 exports.conf = {
   enabled: true,
