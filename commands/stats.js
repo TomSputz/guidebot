@@ -1,6 +1,6 @@
 const { version } = require("discord.js");
 
-exports.run = (client, message, args, level) => { // eslint-disable-line no-unused-vars
+exports.run = (client, message) => {
   message.channel.send(`= STATISTICS =
 • Mem Usage  :: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB
 • Uptime     :: ${new Date(client.uptime).toTimeString().slice(0,8)}

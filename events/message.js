@@ -57,7 +57,7 @@ module.exports = async (client, message) => {
   }
 
   // To simplify message arguments, the author's level is now put on level (not member so it is supported in DMs)
-  // The "level" command module argument will be deprecated in the future.
+  // The "level" command module argument is now deprecated.
   message.author.permLevel = level;
   
   message.flags = [];
@@ -66,5 +66,5 @@ module.exports = async (client, message) => {
   }
   // If the command exists, **AND** the user has permission, run it.
   client.logger.cmd(`${client.config.permLevels.find(l => l.level === level).name} ${message.author.username} (${message.author.id}) ran command ${cmd.help.name}`);
-  cmd.run(client, message, args, level);
+  cmd.run(client, message, args);
 };

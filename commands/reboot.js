@@ -1,4 +1,4 @@
-exports.run = async (client, message, args, level) => {// eslint-disable-line no-unused-vars
+exports.run = async (client, message) => {
   await message.reply("Bot is shutting down.");
   client.commands.forEach( async cmd => {
     await client.unloadCommand(cmd);
