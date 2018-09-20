@@ -44,7 +44,7 @@ module.exports = (client) => {
    * any characters that exist in that file, and has a fallback for
    * alphabetical and numerical characters
    * @constructor
-   * @param {String|Number} string The value to be converted
+   * @param {String|Number} input The value to be converted
    * @returns {String} A blocktext version of the passed string
    */
   client.toEmojiString = (input) => {
@@ -99,6 +99,7 @@ module.exports = (client) => {
    * @param {(User|String)} [subject] Only allow this user to respond to the prompt
    * @returns {Promise.<String|Error>} Resolves to the string the user chose
    */
+  // TODO: Switch 'subject' parameters in these functions to a filter, allowing more specific sets of users to respond
   client.multiplePrompt = (context, options, description = 0, timeout = 60000, subject) => {
     return new Promise((resolve, reject) => {
       if (context.constructor.name === "Message") {
