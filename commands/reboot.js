@@ -1,10 +1,4 @@
-exports.run = async (client, message) => {
-  await message.reply("Bot is shutting down.");
-  client.commands.forEach( async cmd => {
-    await client.unloadCommand(cmd);
-  });
-  process.exit(1);
-};
+exports.run = (client, message) => client.successEmbed(message.channel, "Bot is shutting down.").then(client.commands.forEach(cmd => client.unloadCommand(cmd)) && process.exit(1));
 
 exports.conf = {
   enabled: true,
