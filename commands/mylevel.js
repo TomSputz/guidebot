@@ -1,7 +1,4 @@
-exports.run = async (client, message) => {
-  const friendly = client.config.permLevels.find(l => l.level === message.author.permLevel).name;
-  message.reply(`Your permission level is: ${message.author.permLevel} - ${friendly}`);
-};
+exports.run = async (client, message) => client.coloredEmbed(message.channel, message.author.username + "'s permission level", message.author.permLevel + " - " + client.config.permLevels.find(l => l.level === message.author.permLevel).name, 0x7289DA);
 
 exports.conf = {
   enabled: true,
