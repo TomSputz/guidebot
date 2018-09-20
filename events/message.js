@@ -6,6 +6,9 @@ module.exports = async (client, message) => {
   // It's good practice to ignore other bots. This also makes your bot ignore itself
   // and not get into a spam loop (we call that "botception").
   if (message.author.bot) return;
+  
+  // Grab the data object for the guild, used for easy reference
+  const data = client.guildData.has(message.guild.id) ? client.guildData.get(message.guild.id) : (client.guildData.set(message.guild.id, {})).get(message.guild.id);
 
   // Grab the settings for this server from Enmap.
   // If there is no guild, get default conf (DMs)
@@ -66,5 +69,5 @@ module.exports = async (client, message) => {
   }
   // If the command exists, **AND** the user has permission, run it.
   client.logger.cmd(`${client.config.permLevels.find(l => l.level === level).name} ${message.author.username} (${message.author.id}) ran command ${cmd.help.name}`);
-  cmd.run(client, message, args);
+  cmd.run(client, message, args, data);
 };

@@ -36,7 +36,7 @@ async function init() {
   // Now we integrate the use of Evie's awesome Enhanced Map module, which
   // essentially saves a collection to disk. This is great for per-server configs,
   // and makes things extremely easy for this purpose.
-  client.settings = new Enmap({name: "settings"});
+  client.guildData = new Enmap({name: "guildData"});
 
   // Here we load **commands** into memory, as a collection, so they're accessible
   // here and everywhere else.

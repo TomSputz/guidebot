@@ -30,11 +30,9 @@ module.exports = (client) => {
   client.getSettings = guildid => {
     const defaults = client.config.defaultSettings || {};
     if (!guildid) return defaults;
-    const guildData = client.settings.get(guildid) || {};
+    const guildData = client.guildData.get(guildid).settings || {};
     const returnObject = {};
-    Object.keys(defaults).forEach((key) => {
-      returnObject[key] = guildData[key] ? guildData[key] : defaults[key];
-    });
+    Object.keys(defaults).forEach((key) => returnObject[key] = guildData[key] ? guildData[key] : defaults[key]);
     return returnObject;
   };
   /**
