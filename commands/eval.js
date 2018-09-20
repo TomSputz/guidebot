@@ -6,44 +6,46 @@
 
 // However it's, like, super ultra useful for troubleshooting and doing stuff
 // you don't want to put in a command.
-exports.run = async (client, message, args) => {
-  const code = args.join(" ");
-  try {
-    const evaled = eval(code);
-    const clean = await client.clean(client, evaled);
-    if (clean.length > 1990) {
-      if (client.config.logLongOutput) {
-        console.log(evaled);
-        return client.successEmbed(message.channel, "Execution complete and output to console");
-      } else {
-        return message.channel.send("Execution complete, output has been trimmed```\n" + clean.substring(0, 1949) + "```");
+module.exports = {
+  run: async (client, message, args) => {
+    const code = args.join(" ");
+    try {
+      const evaled = eval(code);
+      const clean = await client.clean(client, evaled);
+      if (clean.length > 1990) {
+        if (client.config.logLongOutput) {
+          console.log(evaled);
+          return client.successEmbed(message.channel, "Execution complete and output to console");
+        } else {
+          return message.channel.send("Execution complete, output has been trimmed```\n" + clean.substring(0, 1949) + "```");
+        }
       }
-    }
-    message.channel.send("```js\n" + clean + "```");
-  } catch (err) {
-    const clean = await client.clean(client, err);
-    if (clean.length > 1990) {
-      if (client.config.logLongOutput) {
-        console.log(err);
-        return client.errorEmbed(message.channel, "Execution failed and stacktrace logged");
-      } else {
-        return client.errorEmbed(message.channel, "Execution failed, stacktrace has been trimmed```\n" + clean.substring(0, 1995) + "```");
+      message.channel.send("```js\n" + clean + "```");
+    } catch (err) {
+      const clean = await client.clean(client, err);
+      if (clean.length > 1990) {
+        if (client.config.logLongOutput) {
+          console.log(err);
+          return client.errorEmbed(message.channel, "Execution failed and stacktrace logged");
+        } else {
+          return client.errorEmbed(message.channel, "Execution failed, stacktrace has been trimmed```\n" + clean.substring(0, 1995) + "```");
+        }
       }
+      client.errorEmbed(message.channel, "```xl\n" + clean + "```");
     }
-    client.errorEmbed(message.channel, "```xl\n" + clean + "```");
+  },
+
+  conf: {
+    enabled: true,
+    guildOnly: false,
+    aliases: [],
+    permLevel: "Bot Owner"
+  },
+  
+  help: {
+    name: "eval",
+    category: "System",
+    description: "Evaluates arbitrary javascript.",
+    usage: "eval [...code]"
   }
-};
-
-exports.conf = {
-  enabled: true,
-  guildOnly: false,
-  aliases: [],
-  permLevel: "Bot Owner"
-};
-
-exports.help = {
-  name: "eval",
-  category: "System",
-  description: "Evaluates arbitrary javascript.",
-  usage: "eval [...code]"
 };
