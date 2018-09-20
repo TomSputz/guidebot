@@ -64,10 +64,11 @@ module.exports = (client) => {
    */
   client.coloredEmbed = (channel, title, description, color) => {
     return new Promise((resolve, reject) => {
-      channel.send(new Discord.RichEmbed({
-        "title": title,
-        "description": description,
-        "color": color
+      channel.send(new Discord.MessageEmbed({
+        type: "rich",
+        title: title,
+        description: description,
+        color: color
       })).then(resolve).catch(reject);
     });
   };
@@ -107,9 +108,10 @@ module.exports = (client) => {
       if (options.length == 0) return reject(new Error("No options"));
       if (options.length == 1) return resolve(options[0]);
       if (options.length > 9) return reject(new Error("Too many options"));
-      context.send(["Embed", "String"].includes(description.constructor.name) ? description : new Discord.RichEmbed({
-        "title": "Multiple Choice",
-        "description": "React to this message to choose.\n\n" + options.map(i => client.toEmojiString(options.indexOf(i) + 1) + " " + i).join("\n")
+      context.send(["Embed", "String"].includes(description.constructor.name) ? description : new Discord.MessageEmbed({
+        type: "rich",
+        title: "Multiple Choice",
+        description: "React to this message to choose.\n\n" + options.map(i => client.toEmojiString(options.indexOf(i) + 1) + " " + i).join("\n")
       })).then(async (prompt) => {
         prompt.reactives = [];
         const collector = prompt.createReactionCollector((reaction, user) => !(user.bot) && reaction.message.reactives.includes(reaction) && (subject ? [subject, subject.id].includes(user.id) : true), {
