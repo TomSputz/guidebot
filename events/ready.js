@@ -1,7 +1,7 @@
-module.exports = async client => {
+module.exports = client => {
   // Log that the bot is online.
   client.logger(`${client.user.tag}, ready to serve ${client.users.size} users in ${client.guilds.size} servers.`, "ready");
 
-  // Make the bot "play the game" which is the help command with default prefix.
-  client.user.setActivity(`${client.config.defaultSettings.prefix}help`, {type: "PLAYING"});
+  // Make the bot activity 'Listening to amy mentions', alluding to the mention functionality that can tell users the prefix to use.
+  client.user.setActivity("any mentions", {type: "LISTENING"});
 };
