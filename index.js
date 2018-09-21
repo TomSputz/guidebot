@@ -16,17 +16,18 @@ async function init() {
   // or `bot.something`, this is what we're refering to. Your client.
   const client = new Discord.Client();
 
+  // Let's start by getting some useful functions that we'll use throughout
+  // the bot, like logs and elevation features.
+  require("./modules/functions.js")(client);
+
   // Here we load the config file that contains our token and our prefix values.
-  client.config = require("./config.js");
+  require("./config.js")(client);
+
   // client.config.token contains the bot's token
   // client.config.prefix contains the message prefix
 
   // Require our logger
   client.logger = require("./modules/Logger");
-
-  // Let's start by getting some useful functions that we'll use throughout
-  // the bot, like logs and elevation features.
-  require("./modules/functions.js")(client);
 
   // Aliases and commands are put in collections where they can be read from,
   // catalogued, listed, etc.

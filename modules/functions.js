@@ -4,18 +4,18 @@ module.exports = (client) => {
    * This is a very basic permission system for commands which uses "levels"
    * "spaces" are intentionally left black so you can add them if you want.
    * @constructor
-   * @param {Message} message The message to check for permlevel
+   * @param {User|GuildMember} User The message to check for permlevel
    * @returns {Number} The permission level the
    */
-  client.permlevel = message => {
+  client.permlevel = User => {
     let permlvl = 0;
-
+    const isGuildMember = Boolean(User.constructor.name === "GuildMember");
     const permOrder = client.config.permLevels.slice(0).sort((p, c) => p.level > c.level ? 1 : -1);
 
     while (permOrder.length) {
       const currentLevel = permOrder.shift();
-      if (!(message.guild) && currentLevel.guildOnly) continue;
-      if (currentLevel.check(message)) permlvl = currentLevel.level;
+      if (!(isGuildMember) && currentLevel.guildMemberOnly) continue;
+      if (currentLevel.check(User)) permlvl = currentLevel.level;
     }
     return permlvl;
   };

@@ -8,11 +8,11 @@ module.exports = async (client, message) => {
   if (message.author.bot) return;
   
   // Grab the data object for the guild, used for easy reference
-  const data = client.guildData.has(message.guild.id) ? client.guildData.get(message.guild.id) : (client.guildData.set(message.guild.id, {})).get(message.guild.id);
+  const data = message.guild ? client.guildData.has(message.guild.id) ? client.guildData.get(message.guild.id) : (client.guildData.set(message.guild.id, {})).get(message.guild.id) : {};
 
   // Grab the settings for this server from Enmap.
   // If there is no guild, get default conf (DMs)
-  const settings = message.settings = client.getSettings(message.guild.id);
+  const settings = message.settings = message.guild ? client.getSettings(message.guild.id) : client.config.defaultSettings;
 
   // Checks if the bot was mentioned, with no message after it, returns the prefix.
   const prefixMention = new RegExp(`^<@!?${client.user.id}>( |)$`);
@@ -35,7 +35,7 @@ module.exports = async (client, message) => {
   if (message.guild && !message.member) await message.guild.fetchMember(message.author);
 
   // Get the user or member's permission level from the elevation
-  const level = client.permlevel(message);
+  const level = client.permlevel(message.member ? message.member : message.author);
 
   // Check whether the command, or alias, exist in the collections defined
   // in app.js.
