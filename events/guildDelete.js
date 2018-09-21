@@ -5,7 +5,5 @@ module.exports = (client, guild) => {
 
   // If the settings Enmap contains any guild data, remove it.
   // No use keeping stale data!
-  if (client.guildData.has(guild.id)) {
-    client.guildData.delete(guild.id);
-  }
+  if (client.guildData.has(guild.id)) client.guildData.delete(guild.id);
 };
