@@ -1,5 +1,5 @@
 module.exports = {
-  run: (client, message) => client.successEmbed(message.channel, "Bot is shutting down.").then(() => {
+  run: (client, message) => message.channel.successEmbed("Bot is shutting down.").then(() => {
     client.commands.keyArray().forEach(cmd => client.unloadCommand(cmd));
     process.exit(1);
   }),

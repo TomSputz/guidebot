@@ -22,14 +22,14 @@ module.exports = {
     // Edit an existing key value
     if (action === "edit") {
       // User must specify a key.
-      if (!key) return client.errorEmbed(message.channel, "Please specify a key to edit");
+      if (!key) return message.channel.errorEmbed("Please specify a key to edit");
       // User must specify a key that actually exists!
-      if (!defaults[key]) return client.errorEmbed(message.channel, "This key does not exist in the settings");
+      if (!defaults[key]) return message.channel.errorEmbed("This key does not exist in the settings");
       const joinedValue = value.join(" ");
       // User must specify a value to change.
-      if (joinedValue.length < 1) return client.errorEmbed(message.channel, "Please specify a new value");
+      if (joinedValue.length < 1) return message.channel.errorEmbed("Please specify a new value");
       // User must specify a different value than the current one.
-      if (joinedValue === settings[key]) return client.errorEmbed(message.channel, "This setting already has that value!");
+      if (joinedValue === settings[key]) return message.channel.errorEmbed("This setting already has that value!");
 
       overrides[key] = joinedValue;
 
@@ -37,21 +37,21 @@ module.exports = {
       client.guildData.set(message.guild.id, overrides, "settings");
 
       // Confirm everything is fine!
-      client.successEmbed(message.channel, `${key} successfully edited to ${joinedValue}`);
+      message.channel.successEmbed(`${key} successfully edited to ${joinedValue}`);
     } else
 
     // Resets a key to the default value
     if (action === "del" || action === "reset") {
-      if (!key) return client.errorEmbed(message.channel, "Please specify a key to reset.");
-      if (!defaults[key]) return client.errorEmbed(message.channel, "This key does not exist in the settings");
-      if (!overrides[key]) return client.errorEmbed(message.channel, "This key does not have an override and is already using defaults.");
+      if (!key) return message.channel.errorEmbed("Please specify a key to reset.");
+      if (!defaults[key]) return message.channel.errorEmbed("This key does not exist in the settings");
+      if (!overrides[key]) return message.channel.errorEmbed("This key does not have an override and is already using defaults.");
 
       // Good demonstration of the custom booleanPrompt method in `./modules/functions.js` !
-      client.booleanPrompt(message, `Are you sure you want to reset ${key} to the default value?`).then((Ans) => {
+      message.channel.booleanPrompt(`Are you sure you want to reset ${key} to the default value?`).then((Ans) => {
         if (Ans) {
           delete overrides[key];
           client.guildData.set(message.guild.id, overrides, "settings");
-          client.successEmbed(message.channel, key + " was reset.");
+          message.channel.successEmbed(key + " was reset.");
         }
       });
     } else
@@ -64,7 +64,7 @@ module.exports = {
         });
       }
       if (!defaults[key]) return message.reply("This key does not exist in the settings");
-      client.coloredEmbed(message.channel, key, (overrides[key] ? "Custom: " : "Default: ") + settings[key], 0x7289DA);
+      message.channel.coloredEmbed(key, (overrides[key] ? "Custom: " : "Default: ") + settings[key], 0x7289DA);
     } else {
       // Otherwise, the default action is to return the whole configuration;
       // When making a proper subcommand system, make this a synonym for 'set get'

@@ -1,4 +1,4 @@
-const Discord = require("discord.js");
+const { Structures, MessageEmbed } = require("discord.js");
 module.exports = (client) => {
   /**
    * This is a very basic permission system for commands which uses "levels"
@@ -53,153 +53,247 @@ module.exports = (client) => {
     if (/[a-z|A-Z]/.test(input)) return input.replace(/[a-z|A-Z]/, i => `:regional_indicator_${i.toLowerCase()}:`);
     return input;
   };
-  /**
-   * Sends an embed with parameters to the given channel.
-   * @constructor
-   * @param {Channel} channel The channel which the Embed should be sent to
-   * @param {String} title The title for the Embed
-   * @param {String} description The description for the Embed
-   * @param {Color} color The color for the Embed
-   * @returns {Promise} Resolves to the sent message
-   */
-  client.coloredEmbed = (channel, title, description, color) => {
-    return new Promise((resolve, reject) => {
-      channel.send(new Discord.MessageEmbed({
-        type: "rich",
-        title: title,
-        description: description,
-        color: color
-      })).then(resolve).catch(reject);
-    });
-  };
-  /**
-   * Sends an Embed to the given Channel describing a success - Has title 'Success' and uses discord's Online color
-   * @constructor
-   * @param {Channel} channel The channel which the Embed should be sent to
-   * @param {String} description The description for the Embed
-   * @returns {Promise} Resolves to the sent message
-   */
-  client.successEmbed = (channel, description) => client.coloredEmbed(channel, "Success", description, 0x43B581);
-  /**
-   * Sends an Embed to the given Channel describing an error - Has title 'Error' and uses discord's DND color
-   * @constructor
-   * @param {Channel} channel The channel which the Embed should be sent to
-   * @param {String} description The description for the Embed
-   * @returns {Promise} Resolves to the sent message
-   */
-  client.errorEmbed = (channel, description) => client.coloredEmbed(channel, "Error", description, 0xF04747);
-  /**
-   * Prompts user to choose string from array using reactions
-   * @constructor
-   * @param {Channel|Message} context The channel to send the question to. If message is passed and no subject is defined, the author will be used as subject
-   * @param {String[]} options An array of strings representing the choices for the user
-   * @param {(Embed|String)} [description] Used as message to send to channel, will be given reactions up to the number of strings in [options]. Should explain what each option mean
-   * @param {Number} [timeout=60000] How long to wait for a response in milliseconds
-   * @param {(User|String)} [subject] Only allow this user to respond to the prompt
-   * @returns {Promise.<String|Error>} Resolves to the string the user chose
-   */
-  // TODO: Switch 'subject' parameters in these functions to a filter, allowing more specific sets of users to respond
-  client.multiplePrompt = (context, options, description = 0, timeout = 60000, subject) => {
-    return new Promise((resolve, reject) => {
-      if (context.constructor.name === "Message") {
-        if (!(subject)) subject = context.author;
-        context = context.channel;
+  Structures.extend("TextChannel", OldTextChannel => {
+    class TextChannel extends OldTextChannel {
+      /**
+       * Sends an embed with parameters to the this channel.
+       * @constructor
+       * @param {String} title The title for the Embed
+       * @param {String} description The description for the Embed
+       * @param {Color} color The color for the Embed
+       * @returns {Promise} Resolves to the sent message
+       */
+      coloredEmbed(title, description, color) {
+        return new Promise((resolve, reject) => {
+          this.send(new MessageEmbed({
+            type: "rich",
+            title: title,
+            description: description,
+            color: color
+          })).then(resolve).catch(reject);
+        });
       }
-      if (options.length == 0) return reject(new Error("No options"));
-      if (options.length == 1) return resolve(options[0]);
-      if (options.length > 9) return reject(new Error("Too many options"));
-      context.send(["Embed", "String"].includes(description.constructor.name) ? description : new Discord.MessageEmbed({
-        type: "rich",
-        title: "Multiple Choice",
-        description: "React to this message to choose.\n\n" + options.map(i => client.toEmojiString(options.indexOf(i) + 1) + " " + i).join("\n")
-      })).then(async (prompt) => {
-        prompt.reactives = [];
-        const collector = prompt.createReactionCollector((reaction, user) => !(user.bot) && reaction.message.reactives.includes(reaction) && (subject ? [subject, subject.id].includes(user.id) : true), {
-          maxEmojis: 1,
-          time: timeout
-        });
-        collector.on("collect", r => {
-          if (r.deletable) r.message.delete();
-          if (r.emoji.name == "❌") return reject(new Error("User rejected"));
-          resolve(options[parseInt(r.emoji.identifier.charAt(0)) - 1]);
-        });
-        collector.on("end", (messages, reason) => (prompt.deletable && prompt.delete()) || (reason == "time" && reject(new Error(reason))));
-        await prompt.react("❌").then(r => r.message.reactives.push(r)).catch(() => NaN);
-        for (let i = 0; i < options.length; i++) await prompt.react((i + 1) + "%E2%83%A3").then(r => r.message.reactives.push(r)).catch(() => NaN);
-      });
-    });
-  };
-  /**
-   * A simple way to grab a single reply, from the user that initiated
-   * the command. Useful to get "precisions" on certain things...
-   * @constructor
-   * @param {Channel|Message} context The channel to send the question to. If message is passed and no subject is defined, the author will be used as subject
-   * @param {Embed|String} question The question to send to the channel
-   * @param {Number} [timeout=60000] How long to wait for a response in milliseconds
-   * @param {User} [subject] If non-falsy, only allow this user to respond to the given question
-   * @returns {Promise.<String|Array.<String,User>|Error>} Resolves to user's answer. If no subject is defined, resolves to array containing response as string and author
-   */
-  client.textPrompt = (context, question, timeout = 60000, subject) => {
-    return new Promise((resolve, reject) => {
-      if (context.constructor.name === "Message") {
-        if (!(subject)) subject = context.author;
-        context = context.channel;
+      /**
+       * Sends an Embed to the given Channel describing a success - Has title 'Success' and uses discord's Online color
+       * @constructor
+       * @param {String} description The description for the Embed
+       * @returns {Promise} Resolves to the sent message
+       */
+      successEmbed(description) {
+        this.coloredEmbed("Success", description, 0x43B581);
       }
-      context.send(question).then(prompt => {
-        const collector = context.createMessageCollector(m => !(m.author.bot) && (subject ? [m.author, m.author.id].includes(subject) : true), {
-          maxMatches: 1,
-          time: timeout
-        });
-        collector.on("collect", response => resolve(subject ? response.content : [response.content, response.author]));
-        collector.on("end", (messages, reason) => (prompt.deletable && prompt.delete()) || (reason == "time" && reject(new Error(reason))));
-      });
-    });
-  };
-  /**
-   * Prompt the user to react yes/no to a question
-   * @constructor
-   * @param {Channel|Message} context The channel to send the question to
-   * @param {Embed|String} question The question to send to the channel
-   * @param {Number} [timeout=60000] How long the question should stay alive
-   * @param {User} [subject] The user who is allowed to respond to the question
-   * @param {Array.<EmojiResolvable>} reacts The emojis used to respond with [False, True]
-   * @returns {Promise.<Boolean|Array.<Boolean,User>|Error} Resolves to user's answer. If no subject is defined, resolves to array containing response as string and author. If the question times out, it will throw a 'time' error
-   */
-  // TODO: If we find a good way to extend the Discord classes, make this Channel.awaitBooleanReply
-  client.booleanPrompt = (context, question, timeout = 60000, subject, reacts = ["❌", "✅"]) => {
-    return new Promise((resolve, reject) => {
-      if (context.constructor.name === "Message") {
-        if (!(subject)) subject = context.author;
-        context = context.channel;
+      /**
+       * Sends an Embed to the given Channel describing an error - Has title 'Error' and uses discord's DND color
+       * @constructor
+       * @param {String} description The description for the Embed
+       * @returns {Promise} Resolves to the sent message
+       */
+      errorEmbed(description) {
+        this.coloredEmbed("Error", description, 0xF04747);
       }
-      context.send(question).then(prompt => {
-        prompt.reactives = [];
-        const collector = prompt.createReactionCollector((reaction, user) => !(user.bot) && reaction.message.reactives.includes(reaction) && (subject ? [subject, subject.id].includes(user.id) : true), {
-          maxEmojis: 1,
-          time: timeout
+      /**
+       * Prompts user to choose string from array using reactions
+       * @constructor
+       * @param {String[]} options An array of strings representing the choices for the user
+       * @param {Function} [filter] Filter for who is allowed to respond to prompt. Should return true if user is allowed. If not given, anyone can respond
+       * @param {(Embed|String)} [description] Used as message to send to channel, will be given reactions up to the number of strings in [options]. Should explain what each option mean
+       * @param {Number} [timeout=60000] How long to wait for a response in milliseconds
+       * @returns {Promise.<Array.<String,User>|Error>} resolves to array containing response as string and author
+       */
+      multiplePrompt(options, filter, description = 0, timeout = 60000) {
+        return new Promise((resolve, reject) => {
+          if (options.length == 0) return reject(new Error("No options"));
+          if (options.length == 1) return resolve(options[0]);
+          if (options.length > 9) return reject(new Error("Too many options"));
+          this.send(["Embed", "String"].includes(description.constructor.name) ? description : new Discord.MessageEmbed({
+            type: "rich",
+            title: "Multiple Choice",
+            description: "React to this message to choose.\n\n" + options.map(i => this.client.toEmojiString(options.indexOf(i) + 1) + " " + i).join("\n")
+          })).then(async (prompt) => {
+            prompt.reactives = [];
+            const collector = prompt.createReactionCollector((reaction, user) => !(user.bot) && reaction.message.reactives.includes(reaction) && (filter ? filter(user) : true), {
+              max: 1,
+              time: timeout
+            });
+            collector.on("collect", (reaction, user) => (reaction.emoji.name == "❌" && reject(new Error("User rejected"))) || resolve([options[parseInt(reaction.emoji.identifier.charAt(0)) - 1], user]));
+            collector.on("end", (messages, reason) => {
+              if (prompt.deletable) prompt.delete();
+              if (reason == "time") reject(new Error(reason));
+            });
+            await prompt.react("❌").then(r => r.message.reactives.push(r)).catch(() => NaN);
+            for (let i = 0; i < options.length; i++) await prompt.react((i + 1) + "%E2%83%A3").then(r => r.message.reactives.push(r)).catch(() => NaN);
+          });
         });
-        collector.on("collect", (reaction, user) => resolve(subject ? Boolean(reacts.indexOf(reaction.identifier)) : [Boolean(reacts.indexOf(reaction.identifier)), user]));
-        collector.on("end", (reacts, reason) => (prompt.deletable && prompt.delete()) || (reason == "time" && reject(new Error(reason))));
-        prompt.react(reacts[1]).then(r => {
-          prompt.reactives.unshift(r);
-          prompt.react(reacts[0]).then(r => prompt.reactives.unshift(r)).catch(() => NaN);
-        }).catch(() => NaN);
-      });
-    });
-  };
-  /**
-   * Gets user's nickname given a context - if a nickname is not set, the username wil be returned
-   * @constructor
-   * @param {Guild|Message|TextChannel|VoiceChannel|MessageReaction} context The context to check the nickname in
-   * @param {User} [user=client.user] The user who's name to check
-   * @returns {String} The nickname of the user in the given context
-   */
-  client.getNickname = (context, user = client.user) => {
-    if (context.constructor.name == "MessageReaction") context = context.message;
-    if (context.constructor.name == "Message" || "TextChannel" || "VoiceChannel") context = context.guild;
-    context = context.members.get(user.id).nickname;
-    return context ? context : user.username;
-  };
+      }
+      /**
+       * A simple way to grab a single reply, from the user that initiated
+       * the command. Useful to get "precisions" on certain things...
+       * @constructor
+       * @param {Embed|String} question The question to send to the channel
+       * @param {Number} [timeout=60000] How long to wait for a response in milliseconds
+       * @param {Function} [filter] Filter for who is allowed to respond to prompt. Should return true if user is allowed. If not given, anyone can respond
+       * @returns {Promise.<String|Array.<String,User>|Error>} Resolves to user's answer. If no filter is defined, resolves to array containing response as string and author
+       */
+      textPrompt(question, filter, timeout = 60000) {
+        return new Promise((resolve, reject) => {
+          this.send(question).then(prompt => {
+            const collector = this.createMessageCollector(message => !(message.author.bot) && (filter ? filter(message.author) : true), {
+              max: 1,
+              time: timeout
+            });
+            collector.on("collect", response => resolve([response.content, response.author]));
+            collector.on("end", (messages, reason) => {
+              if (prompt.deletable) prompt.delete();
+              if (reason == "time") reject(new Error(reason));
+            });
+          });
+        });
+      }
+      /**
+       * Prompt the user to react yes/no to a question
+       * @constructor
+       * @param {Embed|String} question The question to send to the channel
+       * @param {Function} [filter] Filter for who is allowed to respond to prompt. Should return true if user is allowed. If not given, anyone can respond
+       * @param {Array.<EmojiResolvable>} reacts The emojis used to respond with in order [False, True]
+       * @param {Number} [timeout=60000] How long the question should stay alive
+       * @returns {Promise.<Boolean|Array.<Boolean,User>|Error} Resolves to user's answer. If no subject is defined, resolves to array containing response as string and author. If the question times out, it will throw a 'time' error
+       */
+      booleanPrompt(question, filter, reacts = ["❌", "✅"], timeout = 60000) {
+        return new Promise((resolve, reject) => {
+          this.send(question).then(prompt => {
+            prompt.reactives = [];
+            const collector = prompt.createReactionCollector((reaction, user) => !(user.bot) && reaction.message.reactives.includes(reaction) && (filter ? filter(user) : true), {
+              max: 1,
+              time: timeout
+            });
+            collector.on("collect", (reaction, user) => resolve([Boolean(reacts.indexOf(reaction.emoji.name)), user]));
+            collector.on("end", (messages, reason) => {
+              if (prompt.deletable) prompt.delete();
+              if (reason == "time") reject(new Error(reason));
+            });
+            prompt.react(reacts[1]).then(r => {
+              prompt.reactives.unshift(r);
+              prompt.react(reacts[0]).then(r => prompt.reactives.unshift(r)).catch(() => NaN);
+            }).catch(() => NaN);
+          });
+        });
+      }
+      /**
+       * Gets user's nickname
+       * @constructor
+       * @param {User} [user=client.user] The user who's name to check
+       * @returns {String} The nickname of the user relating to this message
+       */
+      getNickname(user = this.client.user) {
+        if (!this.guild) return user.username;
+        const nickname = this.guild.members.get(user.id).nickname;
+        if (nickname) return nickname;
+        return user.username;
+      }
+    }
+    return TextChannel;
+  });
+  Structures.extend("Message", OldMessage => {
+    class Message extends OldMessage {
+      /**
+       * Prompts user to choose string from array using reactions
+       * @constructor
+       * @param {String[]} options An array of strings representing the choices for the user
+       * @param {(Embed|String)} [description] Used as message to send to channel, will be given reactions up to the number of strings in [options]. Should explain what each option mean
+       * @param {Number} [timeout=60000] How long to wait for a response in milliseconds
+       * @returns {Promise.<String|Error>} Resolves to the string the user chose
+       */
+      multiplePrompt(options, description = 0, timeout = 60000) {
+        return new Promise((resolve, reject) => {
+          if (options.length == 0) return reject(new Error("No options"));
+          if (options.length == 1) return resolve(options[0]);
+          if (options.length > 9) return reject(new Error("Too many options"));
+          this.channel.send(["Embed", "String"].includes(description.constructor.name) ? description : new Discord.MessageEmbed({
+            type: "rich",
+            title: "Multiple Choice",
+            description: "React to this message to choose.\n\n" + options.map(i => this.client.toEmojiString(options.indexOf(i) + 1) + " " + i).join("\n")
+          })).then(async (prompt) => {
+            prompt.reactives = [];
+            const collector = prompt.createReactionCollector((reaction, user) => !(user.bot) && reaction.message.reactives.includes(reaction) && this.author == user, {
+              maxEmojis: 1,
+              time: timeout
+            });
+            collector.on("collect", reaction => (reaction.emoji.name == "❌" && reject(new Error("User rejected"))) || resolve(options[parseInt(reaction.emoji.identifier.charAt(0)) - 1]));
+            collector.on("end", (messages, reason) => {
+              if (prompt.deletable) prompt.delete();
+              if (reason == "time") reject(new Error(reason));
+            });
+            await prompt.react("❌").then(r => r.message.reactives.push(r)).catch(() => NaN);
+            for (let i = 0; i < options.length; i++) await prompt.react((i + 1) + "%E2%83%A3").then(r => r.message.reactives.push(r)).catch(() => NaN);
+          });
+        });
+      }
+      /**
+       * A simple way to grab a single reply, from the user that initiated
+       * the command. Useful to get "precisions" on certain things...
+       * @constructor
+       * @param {Embed|String} question The question to ask the author
+       * @param {Number} [timeout=60000] How long to wait for a response in milliseconds
+       * @returns {Promise.<String|Error>} Resolves to user's answer.
+       */
+      textPrompt(question, timeout = 60000) {
+        return new Promise((resolve, reject) => {
+          this.channel.send(question).then(prompt => {
+            const collector = this.channel.createMessageCollector(m => m.author == this.author, {
+              max: 1,
+              time: timeout
+            });
+            collector.on("collect", response => resolve(response.content));
+            collector.on("end", (messages, reason) => {
+              if (prompt.deletable) prompt.delete();
+              if (reason == "time") reject(new Error(reason));
+            });
+          });
+        });
+      }
+      /**
+       * Prompt the user to react yes/no to a question
+       * @constructor
+       * @param {Embed|String} question The question to send to the channel
+       * @param {Array.<EmojiResolvable>} reacts The emojis used to respond with in order [False, True]
+       * @param {Number} [timeout=60000] How long the question should stay alive
+       * @returns {Promise.<Boolean|Error} Resolves to user's answer.
+       */
+      booleanPrompt(question, reacts = ["❌", "✅"], timeout = 60000) {
+        return new Promise((resolve, reject) => {
+          this.channel.send(question).then(prompt => {
+            prompt.reactives = [];
+            const collector = prompt.createReactionCollector((reaction, user) => this.author == user && reaction.message.reactives.includes(reaction), {
+              max: 1,
+              time: timeout
+            });
+            collector.on("collect", reaction => resolve(Boolean(reacts.indexOf(reaction.emoji.name))));
+            collector.on("end", (messages, reason) => {
+              if (prompt.deletable) prompt.delete();
+              if (reason == "time") reject(new Error(reason));
+            });
+            prompt.react(reacts[1]).then(r => {
+              prompt.reactives.unshift(r);
+              prompt.react(reacts[0]).then(r => prompt.reactives.unshift(r)).catch(() => NaN);
+            }).catch(() => NaN);
+          });
+        });
+      }
+      /**
+       * Gets user's nickname
+       * @constructor
+       * @param {User} [user=client.user] The user who's name to check
+       * @returns {String} The nickname of the user relating to this message
+       */
+      getNickname(user = this.client.user) {
+        if (!this.guild) return user.username;
+        const nickname = this.guild.members.get(user.id).nickname;
+        if (nickname) return nickname;
+        return user.username;
+      }
+    }
+    return Message;
+  });
   /**
    * "Clean" removes @everyone pings, as well as tokens, and makes code blocks
    * escaped so they're shown more easily. As a bonus it resolves promises

@@ -15,7 +15,7 @@ module.exports = {
       if (clean.length > 1990) {
         if (client.config.logLongOutput) {
           console.log(evaled);
-          return client.successEmbed(message.channel, "Execution complete and output to console");
+          return message.channel.successEmbed("Execution complete and output to console");
         } else {
           return message.channel.send("Execution complete, output has been trimmed```\n" + clean.substring(0, 1949) + "```");
         }
@@ -26,12 +26,12 @@ module.exports = {
       if (clean.length > 1990) {
         if (client.config.logLongOutput) {
           console.log(err);
-          return client.errorEmbed(message.channel, "Execution failed and stacktrace logged");
+          return message.channel.errorEmbed("Execution failed and stacktrace logged");
         } else {
-          return client.errorEmbed(message.channel, "Execution failed, stacktrace has been trimmed```\n" + clean.substring(0, 1995) + "```");
+          return message.channel.errorEmbed("Execution failed, stacktrace has been trimmed```\n" + clean.substring(0, 1995) + "```");
         }
       }
-      client.errorEmbed(message.channel, "```xl\n" + clean + "```");
+      message.channel.errorEmbed("```xl\n" + clean + "```");
     }
   },
 

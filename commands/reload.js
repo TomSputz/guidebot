@@ -1,12 +1,12 @@
 module.exports = {
   run: (client, message, args) => {
-    if (!args || args.length < 1) return client.errorEmbed(message.channel, "Must provide a command to reload. Derp.");
+    if (!args || args.length < 1) return message.channel.errorEmbed("Must provide a command to reload. Derp.");
 
     client.unloadCommand(args[0]).then(cmd => {
-      if (cmd instanceof Error) return client.errorEmbed(message.channel, `Error Unloading: ${cmd.message}`);
+      if (cmd instanceof Error) return message.channel.errorEmbed(`Error Unloading: ${cmd.message}`);
       const res = client.loadCommand(cmd);
-      if (res instanceof Error) return client.errorEmbed(message.channel, `Error Loading: ${res.message}`);
-      client.successEmbed(message.channel, `The command \`${cmd}\` has been reloaded`);
+      if (res instanceof Error) return message.channel.errorEmbed(`Error Loading: ${res.message}`);
+      message.channel.successEmbed(`The command \`${cmd}\` has been reloaded`);
     });
   },
 
