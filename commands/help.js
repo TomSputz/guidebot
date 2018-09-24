@@ -20,8 +20,12 @@ module.exports = {
       let currentCategory = "";
       let output = `= Command List =\n\n[Use ${message.settings.prefix}help <commandname> for details]\n`;
       const sorted = myCommands.array().sort((p, c) => p.help.category > c.help.category ? 1 :  p.help.name > c.help.name && p.help.category === c.help.category ? 1 : -1 );
+      const appliedCommands = [];
       sorted.forEach( c => {
+        if (appliedCommands.includes(c.help.name)) return;
+        appliedCommands.push(c.help.name);
         const cat = c.help.category.toProperCase();
+
         if (currentCategory !== cat) {
           output += `\u200b\n== ${cat} ==\n`;
           currentCategory = cat;
@@ -32,8 +36,8 @@ module.exports = {
     } else {
       // Show individual command's help.
       let command = args[0];
-      if (client.commands.has(command)) {
-        command = client.commands.get(command);
+      if (client.commands[command]) {
+        command = client.commands[command];
         if (message.author.permLevel < client.levelCache[command.conf.permLevel]) return;
         message.channel.send(`= ${command.help.name} = \n${command.help.description}\nusage:: ${command.help.usage}\naliases:: ${command.conf.aliases.join(", ")}\n= ${command.help.name} =`, {code:"asciidoc"});
       }
@@ -48,7 +52,6 @@ module.exports = {
   },
   
   help: {
-    name: "help",
     category: "System",
     description: "Displays all the available commands for your permission level.",
     usage: "help [command]"

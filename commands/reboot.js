@@ -1,6 +1,6 @@
 module.exports = {
   run: (client, message) => message.channel.successEmbed("Bot is shutting down.").then(() => {
-    client.commands.keyArray().forEach(cmd => client.unloadCommand(cmd));
+    Object.keys(client.commands).forEach(cmd => client.unloadCommand(cmd));
     process.exit(1);
   }),
   
@@ -12,7 +12,6 @@ module.exports = {
   },
 
   help: {
-    name: "reboot",
     category: "System",
     description: "Shuts down the bot. If running under PM2, bot will restart automatically.",
     usage: "reboot"

@@ -9,7 +9,6 @@ module.exports = {
   },
   
   help: {
-    name: "mylevel",
     category: "Miscelaneous",
     description: "Tells you your permission level for the current message location.",
     usage: "mylevel"

@@ -9,10 +9,11 @@ module.exports = async (client, message) => {
   
   // Grab the data object for the guild, used for easy reference
   const data = message.guild ? client.guildData.has(message.guild.id) ? client.guildData.get(message.guild.id) : (client.guildData.set(message.guild.id, {})).get(message.guild.id) : {};
-
+  const tempData = client.tempGuildData[message.guild.id] ? client.tempGuildData[message.guild.id] : client.tempGuildData[message.guild.id] = {};
+  if (tempData.queue) console.log(tempData.queue.values().next().value);
   // Grab the settings for this server from Enmap.
   // If there is no guild, get default conf (DMs)
-  const settings = message.settings = message.guild ? client.getSettings(message.guild.id) : client.config.defaultSettings;
+  const settings = message.settings = message.guild ? message.guild.getSettings() : client.config.defaultSettings;
 
   // Checks if the bot was mentioned, with no message after it, returns the prefix.
   const prefixMention = new RegExp(`^<@!?${client.user.id}>( |)$`);
@@ -39,7 +40,7 @@ module.exports = async (client, message) => {
 
   // Check whether the command, or alias, exist in the collections defined
   // in app.js.
-  const cmd = client.commands.get(command) || client.commands.get(client.aliases.get(command));
+  const cmd = client.commands.get(command);
   // using this const varName = thing OR otherthign; is a pretty efficient
   // and clean way to grab one of 2 values!
   if (!cmd) return;
@@ -69,5 +70,5 @@ module.exports = async (client, message) => {
   }
   // If the command exists, **AND** the user has permission, run it.
   client.logger.cmd(`${client.config.permLevels.find(l => l.level === level).name} ${message.author.username} (${message.author.id}) ran command ${cmd.help.name}`);
-  cmd.run(client, message, args, data);
+  cmd.run(client, message, args, data, tempData);
 };

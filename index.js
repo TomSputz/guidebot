@@ -3,80 +3,19 @@
 // you.
 if (Number(process.version.slice(1).split(".")[0]) < 8) throw new Error("Node 8.0.0 or higher is required. Update Node on your system.");
 
-// Load up the discord.js library
-const Discord = require("discord.js");
-// We also load the rest of the things we need in this file:
-const { readdir } = require("fs");
-const Enmap = require("enmap");
+// Load our extensions to the primitive javascript types
+require("./modules/JSExtensions");
+// Load our custom client
+const Client = require("./modules/CustomClient");
 
-// Async function to start bot with. Allows bot to be run below top-level node process without blocking
-async function init() {
+const init = async () => {
   // This is your client. Some people call it `bot`, some people call it `self`,
   // some might call it `cootchie`. Either way, when you see `client.something`,
   // or `bot.something`, this is what we're refering to. Your client.
-  const client = new Discord.Client();
-
-  // Let's start by getting some useful functions that we'll use throughout
-  // the bot, like logs and elevation features.
-  require("./modules/functions.js")(client);
-
-  // Here we load the config file that contains our token and our prefix values.
-  require("./config.js")(client);
-
-  // client.config.token contains the bot's token
-  // client.config.prefix contains the message prefix
-
-  // Require our logger
-  client.logger = require("./modules/Logger");
-
-  // Aliases and commands are put in collections where they can be read from,
-  // catalogued, listed, etc.
-  client.commands = new Enmap();
-  client.aliases = new Enmap();
-
-  // Now we integrate the use of Evie's awesome Enhanced Map module, which
-  // essentially saves a collection to disk. This is great for per-server configs,
-  // and makes things extremely easy for this purpose.
-  client.guildData = new Enmap({name: "guildData"});
-
-  // Here we load **commands** into memory, as a collection, so they're accessible
-  // here and everywhere else.
-  // I've looked into making loading commands asynchronous, however it doesn't really
-  // provide any benefit until ~20 commands are being loaded, so I am going to keep
-  // the code synchronous for simplicity
-  const cmdFiles = await new Promise(res => readdir("./commands/", (e, files) => res(files)));
-  client.logger(`Loading a total of ${cmdFiles.length} commands.`);
-  cmdFiles.forEach(f => {
-    if (!f.endsWith(".js")) return;
-    client.logger(`Loading Command: ${f}`);
-    const response = client.loadCommand(f);
-    if (response) console.log(response);
-  });
-  
-  // Then we load events, which will include our message and ready event.
-  const evtFiles = await new Promise(res => readdir("./events/", (e, files) => res(files)));
-  client.logger(`Loading a total of ${evtFiles.length} events.`);
-  evtFiles.forEach(file => {
-    const eventName = file.split(".")[0];
-    client.logger(`Loading Event: ${eventName}`);
-    const event = require(`./events/${file}`);
-    // Bind the client to any event, before the existing arguments
-    // provided by the discord.js event. 
-    // This line is awesome by the way. Just sayin'.
-    client.on(eventName, event.bind(null, client));
-  });
-
-  // Generate a cache of client permissions for pretty perm names in commands.
-  client.levelCache = {};
-  for (let i = 0; i < client.config.permLevels.length; i++) {
-    const thisLevel = client.config.permLevels[i];
-    client.levelCache[thisLevel.name] = thisLevel.level;
-  }
-
-  // Here we login the client.
-  client.login(client.config.token);
-
+  const client = new Client("./config.js");
+  await client.loadCommands("./commands/");
+  await client.loadEvents("./events/");
+  client.login();
   // End top-level async/await function.
-}
-exports.init = init;
+};
 init();
