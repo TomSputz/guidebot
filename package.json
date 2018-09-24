@@ -27,8 +27,11 @@
     "base-64": "^0.1.0",
     "better-sqlite-pool": "^0.1.2",
     "discord.js": "git://github.com/discordjs/discord.js.git#master",
+    "duration-iso-8601": "^1.1.0",
+    "encoding": "^0.1.12",
     "enmap": "^4.2.1",
     "googleapis": "^33.0.0",
+    "iconv": "^2.3.0",
     "node-opus": "^0.3.0",
     "ytdl-core": "^0.25.2"
   }

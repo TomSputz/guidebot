@@ -118,7 +118,7 @@ module.exports = class Client extends Discord.Client {
               };
             } else {
               // This else statement is actually only considering 'playlist' and 'album' types
-              type === "album" ? response.tracks.items.forEach(i => Tracks.push(i)) : response.tracks.items.forEach(i => Tracks.push(i.track));
+              type === "album" ? response.tracks.items.forEach(i => Tracks.push(i) && SongGroup.set(i.id, {})) : response.tracks.items.forEach(i => Tracks.push(i.track) && SongGroup.set(i.id, {}));
               delete response.tracks;
               SongGroup.metadata = response;
             }
@@ -126,7 +126,7 @@ module.exports = class Client extends Discord.Client {
             Promise.all(Tracks.map(async track => {
               const results = await this.audio.youtubeAPI.search.list({
                 part: "id, snippet",
-                q: `${track.artists[0].name} ${track.name}`,
+                q: `${type === "album" ? SongGroup.metadata.name : track.artists[0].name} ${track.name}`,
                 type: "video",
                 safeSearch: "none"
               });
