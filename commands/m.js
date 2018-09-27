@@ -3,49 +3,122 @@ const {
   MessageEmbed
 } = require("discord.js");
 const iso8601 = require("duration-iso-8601");
+const { MessageAttachment } = require("discord.js");
+const { createCanvas, registerFont } = require("canvas");
+registerFont("./assets/fonts/Signika/Signika-Regular.ttf", {family: "Signika"});
+registerFont("./assets/fonts/Quark-Light.otf", {family: "Quark"});
+registerFont("./assets/fonts/DiscordWhitney.ttf", {family: "Whitney"});
+registerFont("./assets/fonts/MaterialIcons-Regular.ttf", {family: "Material"});
 module.exports = {
-  run: async (client, message, [action, tag, ...args], data, tempData) => {
+  temprun: async (client, message, [action, tag], data, tempData) => {
+    client.AudioModule.wakeShard(message.guild.id);
+    const playlist = await tempData.Audio.Manager.spotifyURI(message.content.slice(2));
+    console.log(await playlist.fetchDetails(0));
+    // if (action === "play") {
+    //   if (!message.member.voice.channel) message.channel.errorEmbed("You must be in a voice channel");
+    //   if (!tempData.Audio.Channels[message.member.voice.channel.id]) await tempData.Audio.connect(message.member.voice.channel);
+    //   const Channel = tempData.Audio.Channels[message.member.voice.channel.id];
+    //   if (tag && tag.startsWith("spotify:")) Channel.Queue.push(await client.AudioModule.spotifyURI(tag));
+    //   const recursePlaylist = async () => {
+    //     const Dispatcher = await Channel.playYtId(Channel.Queue[Channel.queueIndex].video.id.videoId);
+    //     Channel.queueIndex += 1;
+    //     if (Channel.queueIndex >= tempData.Audio.Queue.size()) return;
+    //     Dispatcher.on("end", recursePlaylist);
+    //   };
+    //   recursePlaylist();
+    // }
+  },
+  run: async (client, message, [action, tag, ...args], d, tempData) => {
+    client.AudioModule.wakeShard(message.guild.id);
     if (!tempData.audio) tempData.audio = {};
-    if (!tempData.audio.queue) {
-      tempData.audio.queue = new Array();
-      tempData.audio.queue.getSong = place => {
-        const remainingMaps = tempData.audio.queue.slice();
-        while (place > remainingMaps[0].size - 1) {
-          place -= remainingMaps[0].size;
-          remainingMaps.shift();
-        }
-        return Array.from(remainingMaps[0].values())[place];
-      };
-      tempData.audio.queue.songLength = () => {
-        let len = 0;
-        for (let i = 0; i < tempData.audio.queue.length; i++) {
-          len += tempData.audio.queue[i].size;
-        }
-        return len;
-      };
-    }
-    const summonInfo = (channel) => {
-      if (tempData.audio.message && tempData.audio.message.deletable) tempData.audio.message.delete();
+    if (!tempData.audio.queue) tempData.audio.queue = new tempData.Audio.Manager.Queue();
+    const summonInfo = async (channel) => {
       let embed;
-      if (tempData.audio.queue[0]) {
-        const metadata = tempData.audio.queue[0].metadata;
-        const song = tempData.audio.queue.getSong(tempData.audio.currentQueue);
-        const streamTimeString = new Date(tempData.audio.dispatcher.streamTime).toTimeString().slice(0, 8).replace(/00:/g, "");
-        const durationString = new Date(iso8601.convertToSecond(song.video.contentDetails.duration) * 1000).toTimeString().slice(0, 8).replace(/00:/g, "");
-        const percentage = tempData.audio.dispatcher.streamTime / (iso8601.convertToSecond(song.video.contentDetails.duration) * 1000);
-        embed = new MessageEmbed(metadata.type === "youtube" ? {} : {
-          title: `${new Date(Date.now()).toLocaleTimeString()} | ${tempData.audio.connection.status === 0 ? (tempData.audio.dispatcher.paused ? "Paused in " : "Playing in ") + tempData.audio.connection.channel.name : "Music offline"}`,
-          description: `Listening to ${tempData.audio.currentQueue + 1} of ${tempData.audio.queue.songLength()}\n${tempData.audio.loopQueue ? "Queue looping \\✔\n" : ""}${tempData.audio.loopSong ? "Song looping \\✔\n" : ""}`,
+      const metadata = tempData.audio.queue[0].metadata;
+      const song = tempData.audio.queue.get(tempData.audio.currentQueue);
+      const regex = /^00:0|^00:|^0/g;
+      const streamTimeString = new Date(tempData.audio.dispatcher.streamTime).toTimeString().slice(0, 8).replace(regex, "");
+      const durationString = new Date(iso8601.convertToSecond(song.video.contentDetails.duration) * 1000).toTimeString().slice(0, 8).replace(regex, "");
+      const percentage = tempData.audio.dispatcher.streamTime / (iso8601.convertToSecond(song.video.contentDetails.duration) * 1000);
+      function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+        if (typeof stroke == "undefined") {
+          stroke = true;
+        }
+        if (typeof radius === "undefined") {
+          radius = 5;
+        }
+        if (typeof radius === "number") {
+          radius = {tl: radius, tr: radius, br: radius, bl: radius};
+        } else {
+          var defaultRadius = {tl: 0, tr: 0, br: 0, bl: 0};
+          for (var side in defaultRadius) {
+            radius[side] = radius[side] || defaultRadius[side];
+          }
+        }
+        ctx.beginPath();
+        ctx.moveTo(x + radius.tl, y);
+        ctx.lineTo(x + width - radius.tr, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
+        ctx.lineTo(x + width, y + height - radius.br);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius.br, y + height);
+        ctx.lineTo(x + radius.bl, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
+        ctx.lineTo(x, y + radius.tl);
+        ctx.quadraticCurveTo(x, y, x + radius.tl, y);
+        ctx.closePath();
+        if (fill) {
+          ctx.fill();
+        }
+        if (stroke) {
+          ctx.stroke();
+        }
+      
+      }
+      const canvas = createCanvas(400, 14);
+      const ctx = canvas.getContext("2d");
+      // ctx.fillStyle = "blue";
+      // ctx.fillRect(0,0,1000,1000);
+      ctx.font = "18px Whitney";
+      ctx.fillStyle = ctx.strokeStyle = "rgb(200,205,210)";
+      ctx.fillText(streamTimeString, 0, 13);
+      ctx.fillText(durationString, 400 - ctx.measureText(durationString).width, 13);
+      const streamTimeStringWidth = ctx.measureText(streamTimeString).width;
+      const durationStringWidth = ctx.measureText(durationString).width;
+      ctx.font = "18px Material";
+      if (tempData.audio.loopQueue) {
+        ctx.fillText("repeat", streamTimeStringWidth + 10, 16);
+      } else if (tempData.audio.loopSong) {
+        ctx.fillText("repeat_one", streamTimeStringWidth + 10, 16);
+      } else {
+        ctx.fillStyle = ctx.strokeStyle = "rgb(100,100,100)";
+        ctx.fillText("repeat", streamTimeStringWidth + 10, 16);
+      }
+      ctx.fillStyle = ctx.strokeStyle = "rgb(100,100,100)";
+      
+      ctx.fillRect(40 + streamTimeStringWidth, 6, 350 - streamTimeStringWidth - durationStringWidth, 2);
+      ctx.fillStyle = "#7289da";
+      ctx.strokeStyle = "#7289da";
+      ctx.fillRect(40 + streamTimeStringWidth, 6, (350 - streamTimeStringWidth - durationStringWidth) * percentage, 2);
+      const imageMsg = await client.users.get(client.config.ownerID).send("", new MessageAttachment(canvas.toBuffer(),"image.png"));
+      const imageUrl = imageMsg.attachments.values().next().value.url;
+      if (tempData.audio.queue[0] && tempData.audio.queue[0].length - tempData.audio.currentQueue > 0) {
+        embed = new MessageEmbed({
+          author: {
+            name: `${tempData.audio.connection.status === 0 ? (tempData.audio.dispatcher.paused ? "Paused in " : "Playing in ") + tempData.audio.connection.channel.name : "Music offline"}`,
+            icon_url: client.user.avatarURL()
+          },
+          description: `<@!255340004618797056> Playing ${tempData.audio.currentQueue + 1} of ${tempData.audio.queue.size()}:\n` +
+                (song.track.external_urls ? `[${song.track.name.replace(/ *\([^)]*\) *|-.*/g, "").trim()}](${Object.values(song.track.external_urls)[0]})` : song.track.name.replace(/ *\([^)]*\) *|-.*/g, "").trim()) +
+                ` - [\\▶](https://www.youtube.com/watch?v=${song.video.id.videoId}) from [${song.track.album ? song.track.album.name.replace(/ *\([^)]*\) *|-.*/g, "").trim() : metadata.name.replace(/ *\([^)]*\) *|-.*/g, "").trim()}](${song.track.album ? Object.values(song.track.album.external_urls)[0] : Object.values(metadata.external_urls)[0]})`,
           color: 0x7289DA,
           thumbnail: {
-            url: song.track.images ? song.track.images[0].url : metadata.images ? metadata.images[0].url : ""
+            url: song.track.album && song.track.album.images ? song.track.album.images[0].url : metadata.images ? metadata.images[0].url : ""
           },
-          fields: [{
-            name: "Current Song",
-            value: (song.track.external_urls ? `[${song.track.name}](${Object.values(song.track.external_urls)[0]})` : song.track.name) + ` - [\\▶](https://www.youtube.com/watch?v=${song.video.id.videoId}) from [${song.track.album ? song.track.album.name : metadata.name}](${song.track.album ? Object.values(song.track.album.external_urls)[0] : Object.values(metadata.external_urls)[0]})\n${streamTimeString}|-${"█".repeat(Math.max(Math.ceil(percentage * 10) - 1, 0))}${["▒", "▓"][Math.max(Math.ceil((percentage * 100 % 10) * 0.2) - 1, 0)]}${"░".repeat(10 - Math.ceil(percentage * 10))}-|${durationString}`
-          }],
+          image: {
+            url: imageUrl
+          },
           footer: {
-            text: `By ${song.track.artists ? song.track.artists[0].name : metadata.artists[0].name}`
+            text: `${new Date(Date.now()).toLocaleTimeString().slice(0,5).replace(/^0/, "")} | By ${song.track.artists ? song.track.artists[0].name : metadata.artists[0].name}`
           }
         });
       } else {
@@ -55,14 +128,29 @@ module.exports = {
           color: 0x7289DA
         });
       }
+      if (tempData.audio.message && tempData.audio.message.deletable) {
+        if (Array.from(tempData.audio.message.channel.messages.values()).slice(-6).map(i => i.id).includes(tempData.audio.message.id)) {
+          return tempData.audio.message.edit(embed).then(async m => {
+            tempData.audio.message = m;
+          });
+        }
+        tempData.audio.message.delete();
+      }
       channel.send(embed).then(async m => {
         tempData.audio.message = m;
         m.reactives = [];
-        const onCollect = (reaction, user) => {
+        const onCollect = async (reaction, user) => {
           if (reaction.emoji.name === "ℹ") {
-            user.send(new MessageEmbed({
+            if (!user.dmChannel) {
+              const channel = await user.createDM();
+              await channel.messages.fetch({
+                limit: 5
+              });
+            }
+            if (!Array.from(user.dmChannel.messages.values()).slice(-6).map(i => i.author.id).includes(client.user.id)) user.send(new MessageEmbed({
               title: "Music Help"
             }));
+            summonInfo(reaction.message.channel);
           } else if (reaction.emoji.name === "⏯") {
             if (!tempData.audio.dispatcher) return;
             if (tempData.audio.dispatcher.paused) {
@@ -70,7 +158,7 @@ module.exports = {
             } else {
               tempData.audio.dispatcher.pause(true);
             }
-            summonInfo(message.channel);
+            summonInfo(reaction.message.channel);
           } else if (reaction.emoji.name === "🔄") {
             if (tempData.audio.loopQueue) {
               tempData.audio.loopSong = true;
@@ -80,7 +168,7 @@ module.exports = {
             } else {
               tempData.audio.loopQueue = true;
             }
-            summonInfo(message.channel);
+            summonInfo(reaction.message.channel);
           } else if (reaction.emoji.name === "⏭") {
             tempData.audio.connection.nextTrack();
           } else if (reaction.emoji.name === "⏮") {
@@ -88,26 +176,33 @@ module.exports = {
             tempData.audio.connection.nextTrack();
           }
         };
-        const collector = m.createReactionCollector((reaction, user) => !user.bot && reaction.message.reactives.includes(reaction));
+        const collector = m.createReactionCollector((reaction, user) => !user.bot && reaction.message.reactives.includes(reaction), {
+          dispose: true
+        });
         collector.on("collect", onCollect);
-        collector.on("dispose", onCollect);
+        collector.on("remove", onCollect);
         await m.react("ℹ").then(r => r.message.reactives.push(r)).catch(() => NaN);
-        await m.react("⏯").then(r => r.message.reactives.push(r)).catch(() => NaN);
         await m.react("🔄").then(r => r.message.reactives.push(r)).catch(() => NaN);
-        await m.react("⏭").then(r => r.message.reactives.push(r)).catch(() => NaN);
-        await m.react("⏮").then(r => r.message.reactives.push(r)).catch(() => NaN);
+        if (tempData.audio.queue.size() - tempData.audio.currentQueue > 0) {
+          await m.react("⏮").then(r => r.message.reactives.push(r)).catch(() => NaN);
+          await m.react("⏯").then(r => r.message.reactives.push(r)).catch(() => NaN);
+          await m.react("⏭").then(r => r.message.reactives.push(r)).catch(() => NaN);
+        }
       });
     };
     const startPlaying = channel => channel.join().then(connection => {
       tempData.audio.connection = connection;
-      tempData.audio.currentQueue = tempData.audio.currentQueue ? tempData.audio.currentQueue : tempData.audio.loopSong ? 0 : -1;
+      tempData.audio.currentQueue = typeof tempData.audio.currentQueue !== "undefined" ? tempData.audio.currentQueue : tempData.audio.loopSong ? 0 : -1;
       connection.nextTrack = () => {
         if (!tempData.audio) return;
         tempData.audio.currentQueue += 1;
         if (tempData.audio.loopSong) tempData.audio.currentQueue -= 1;
-        if (tempData.audio.loopQueue && tempData.audio.currentQueue > tempData.audio.queue.songLength() - 1) tempData.audio.currentQueue = 0;
-        if (tempData.audio.currentQueue > tempData.audio.queue.songLength() - 1) return message.channel.successEmbed("All songs in queue finished.");
-        const dispatcher = tempData.audio.dispatcher = connection.play(ytdl("http://youtube.com/watch?v=" + tempData.audio.queue.getSong(tempData.audio.currentQueue).video.id.videoId, {
+        if (tempData.audio.loopQueue && tempData.audio.currentQueue > tempData.audio.queue.size() - 1) tempData.audio.currentQueue = 0;
+        if (tempData.audio.currentQueue > tempData.audio.queue.size() - 1) {
+          connection.disconnect();
+          return tempData.audio.queue = new tempData.Audio.Manager.Queue();
+        }
+        const dispatcher = tempData.audio.dispatcher = connection.play(ytdl("http://youtube.com/watch?v=" + tempData.audio.queue.get(tempData.audio.currentQueue).video.id.videoId, {
           filter: "audioonly"
         })).on("end", () => tempData.audio.connection.status === 0 && tempData.audio.dispatcher === dispatcher ? connection.nextTrack() : NaN);
         if (tempData.audio.prevQueue !== tempData.audio.currentQueue) summonInfo(message.channel);
@@ -117,7 +212,9 @@ module.exports = {
     });
 
     if (action === "play") {
-      if (tag && tag.startsWith("spotify:")) tempData.audio.queue.push(await client.audio.spotifyURI(tag));
+      if (tag && tag.startsWith("spotify:")) tempData.audio.queue.push(await tempData.Audio.Manager.spotifyURI(tag));
+      await Promise.all(tempData.audio.queue[0].map(v => v.getVideo()));
+      await tempData.audio.queue[0].fetchDetails(0, tempData);
       startPlaying(message.member.voice.channel);
     } else if (action === "skip") {
       if (tempData.audio && tempData.audio.connection && tempData.audio.connection.nextTrack) {
@@ -155,6 +252,8 @@ module.exports = {
       summonInfo(message.channel);
     } else if (["leave", "stop"].includes(action)) {
       tempData.audio.connection.disconnect();
+      delete tempData.audio.queue;
+      delete tempData.audio.currentQueue;
     } else if (action == "queue") {
       if (tempData.audio.message && tempData.audio.message.deletable) tempData.audio.message.delete();
       const getdesc = () => {
@@ -163,27 +262,24 @@ module.exports = {
         let songid = parseInt(tag) ? parseInt(tag) - 1 : tempData.audio.currentQueue;
         let songno = songid;
         let mapid = 0;
-        while (tempData.audio.queue[mapid] && string.length + addstring.length < 2048) {
+        while (tempData.audio.queue[mapid].length - 1 < songid) {
+          songid -= tempData.audio.queue[mapid].length;
+          mapid += 1;
+        }
+        while (string.length + addstring.length < 2048) {
           string += addstring;
-          const song = Array.from(tempData.audio.queue[mapid].values())[songid];
+          if (!tempData.audio.queue[mapid]) return string;
+          const song = tempData.audio.queue[mapid][songid];
+          addstring = `${songno + 1}. [${song.track.name}](https://www.youtube.com/watch?v=${song.video.id.videoId})\n`;
           songno += 1;
           songid += 1;
           if (tempData.audio.queue[mapid].size < songid + 1) {
             songid = 0;
             mapid += 1;
           }
-          addstring = `${songno}. [${song.track.name}](https://www.youtube.com/watch?v=${song.video.id.videoId})\n`;
+          if (!tempData.audio.queue[mapid][songid]) return string + addstring;
         }
         return string;
-        // return tempData.audio.queue.reduce((str, map) => {
-        // const tracknames = Array.from(map.values()).map(song => {
-        //   songno += 1;
-        //   return songno + `. [${song.track.name}](https://www.youtube.com/watch?v=${song.video.id.videoId})`;
-        // }).join("\n");
-        // while (tracknames.length + )
-        // str += tracknames;
-        //   return str;
-        // },"")
       };
       const embed = new MessageEmbed({
         title: "Queue",

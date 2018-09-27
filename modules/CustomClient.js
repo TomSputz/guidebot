@@ -12,9 +12,242 @@ const {
   readdir
 } = require("fs");
 class Song {
-  constructor(Track, Video) {
+  constructor(Track, Video, ytapi) {
+    this.youtubeAPI = ytapi;
     if (Track) this.track = Track;
-    if (Video) this.video = Video;
+    if (typeof Video === "object") this.video = Video;
+    if (typeof Video === "string") this.getVideo(Video);
+    if (this.track && !this.video) this.getVideo;
+  }
+  getVideo(term) {
+    return new Promise(res => {
+      this.youtubeAPI.search.list({
+        part: "id, snippet",
+        q: term ? term : `${this.track.artists[0].name} ${this.track.name}`,
+        type: "video",
+        safeSearch: "none"
+      }).then(results => res(this.video = results.data.items[0]));
+    });
+  }
+  // Ids should be an array of extra Ids to evaluate. Maximum 50 including this video (50 for youtube api - 1 for this video)
+  getVideoDetails(Ids) {
+    let included = false;
+    if (!Ids.includes(this.video.id.videoId)) {
+      Ids.push(this.video.id.videoId);
+      included = true;
+    }
+    if (Ids.length > 50) return new Error("Too many Ids");
+    if (!this.video) return new Error("This song has no video");
+    return new Promise(res => {
+      this.youtubeAPI.videos.list({
+        part: "contentDetails",
+        id: Ids.join(",")
+      }).then(response => {
+        this.video.contentDetails = response.find(i => i.video.id.videoId === this.video.id.videoId);
+        if (!included) Ids.pop();
+        res(response.data.items.map(i => i.contentDetails));
+      });
+    });
+  }
+}
+class Queue extends Array {
+  // SongGroup objects are maps containing any amount of Song objects, this class
+  // just adds a few methods to make interacting with that easier
+  constructor(...args) {
+    super(...args);
+  }
+  list() {
+    let list = [];
+    if (!this[0]) return list;
+    const maps = this.slice();
+    while (maps[0]) {
+      const map = maps.shift();
+      list = list.concat(Array.from(map.values()));
+    }
+    return list;
+  }
+  get(index) {
+    const maps = this.slice();
+    if (!maps[0]) throw new Error("No songs in list");
+    while (index > maps[0].length - 1) {
+      index -= maps[0].length;
+      maps.shift();
+    }
+    return Array.from(maps[0])[index];
+  }
+  size() {
+    let count = 0;
+    this.forEach(i => count += i.length);
+    return count;
+  }
+}
+class QueuedConnection {
+  constructor(VoiceConnection, AudioShard) {
+    this.Connection = VoiceConnection;
+    this.Manager = AudioShard;
+    this.Queue = new Queue();
+    this.queueIndex = 0;
+    this.Panels = {
+      activePanel: {
+
+      },
+      Types: {
+        control: {
+          generator: () => {
+            return new Discord.MessageEmbed({
+              title: "Generated embed with " + this.guildId
+            });
+          },
+          callback: (message) => {
+            message.react("ℹ");
+          }
+        }
+      }
+    };
+  }
+  playYtId(Id) {
+    return new Promise(res => {
+      this.Connection.play(this.AudioShard.AudioModule.ytdl(`http://youtube.com/watch?v=${Id}`, {
+        filter: "audioonly"
+      })).then(res);
+    });
+  }
+  panelType(id, generator, callback) {
+    // Use this method to assign panelTypes in case we want to do checks at any point
+    this.Panels.Types[id] = {
+      generator: generator,
+      callback: callback
+    };
+  }
+  summonPanel(channel, type = "control") {
+    if (this.Panels.activePanel.deletable) this.Panels.activePanel.delete();
+    if (!this.Panels.Types[type]) return new Error("Invalid panel type");
+    channel.send(this.Panels.Types[type].generator()).then(m => {
+      this.Panels.activePanel = m;
+      this.Panels.Types[type].callback(m);
+    });
+  }
+}
+class AudioShard {
+  constructor(AudioModule, guildId) {
+    this.Manager = AudioModule;
+    this.GuildId = guildId;
+    this.Channels = {};
+  }
+  connect(VoiceChannel) {
+    return new Promise(res => {
+      VoiceChannel.join().then(Connection => {
+        this.Channels[VoiceChannel.id] = new QueuedConnection(Connection, this);
+        res(this.Channels[VoiceChannel.id]);
+      });
+    });
+  }
+}
+class AudioModule {
+  constructor(client) {
+    this.client = client;
+    this.AudioModuleShard = AudioShard;
+    this.Queue = Queue;
+    this.Shards = new Map();
+    this.youtubeAPI = require("googleapis").google.youtube({
+      version: "v3",
+      auth: this.client.config.youtubeClientToken,
+    });
+    this.ytdl = require("ytdl-core");
+    this.refreshSpotifyAccessToken();
+  }
+  refreshSpotifyAccessToken() {
+    return new Promise(resolve => {
+      const req = require("https").request({
+        hostname: "accounts.spotify.com",
+        path: "/api/token",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Authorization": `Basic ${Buffer.from(this.client.config.spotifyClientId + ":" + this.client.config.spotifyClientSecret).toString("base64")}`
+        }
+      }, res => {
+        let data = "";
+        res.on("data", chunk => data += chunk);
+        res.on("end", () => {
+          this.client.config.spotifyAccessToken = JSON.parse(data).access_token;
+          resolve(true);
+        });
+      });
+      req.write("grant_type=client_credentials");
+      req.end();
+    });
+  }
+  spotifyApi(endpoint) {
+    return new Promise(resolve => {
+      require("https").request({
+        hostname: "api.spotify.com",
+        path: endpoint,
+        headers: {
+          "Authorization": `Bearer ${this.client.config.spotifyAccessToken}`
+        }
+      }, response => {
+        let data = "";
+        response.on("data", chunk => data += chunk);
+        response.on("end", () => resolve(JSON.parse(data)));
+      }).end();
+    });
+  }
+  spotifyURI(tag) {
+    return new Promise(res => {
+      tag = tag.replace(/spotify:|user:/g, "");
+      tag = tag.split(":").slice(-2);
+      const type = tag[0].trim();
+      const id = tag[1].trim();
+      this.spotifyApi(`/v1/${type}s/${id}`).then(async response => {
+        while (type === "playlist" && response.tracks.next) {
+          const res2 = await this.spotifyApi(response.tracks.next.slice(23));
+          response.tracks.items = response.tracks.items.concat(res2.items);
+          response.tracks.next = res2.next;
+        }
+        let TrackList;
+        const returnObj = [];
+        if (type === "track") {
+          TrackList = [response];
+          returnObj.metadata = {
+            type: "track"
+          };
+        } else {
+          // This else statement is actually only considering 'playlist' and 'album' types
+          TrackList = type === "album" ? response.tracks.items : response.tracks.items.map(i => i.track);
+          delete response.tracks.items;
+          returnObj.metadata = response;
+        }
+        for (let i = 0; i < TrackList.length; i++) {
+          returnObj.push(new Song(TrackList[i], `${type === "album" ? returnObj.metadata.name : TrackList[i].artists[0].name} ${TrackList[i].name}`, this.youtubeAPI));
+        }
+        returnObj.fetchDetails = function(index, tempData) {
+          if (!this[index]) return new Error("Song does not exist");
+          return new Promise(async res => {
+            let items = [];
+            while (items.length < this.length) {
+              const startindex = Math.max(0, index - 10);
+              const videos = this.slice(startindex, startindex + 50);
+              await tempData.Audio.Manager.youtubeAPI.videos.list({
+                part: "contentDetails",
+                id: videos.map(i => i.video.id.videoId).join(",")
+              }).then(response => items = items.concat(response.data.items));
+            }
+            for (let i = 0; i < this.length; i++) {
+              this[i].video.contentDetails = items[i].contentDetails;
+            }
+            res(this);
+
+          });
+        };
+        res(returnObj);
+      });
+    });
+  }
+  wakeShard(guildId) {
+    const Shard = this.Shards.has(guildId) ? this.Shards.get(guildId) : this.Shards.set(guildId, new AudioShard(this, guildId)).get(guildId);
+    this.client.tempGuildData.get(guildId).Audio = Shard;
+    return Shard;
   }
 }
 // Export the edited client as an extension of the default
@@ -43,7 +276,7 @@ module.exports = class Client extends Discord.Client {
     this.guildData = new Enmap({
       name: "guildData"
     });
-    this.tempGuildData = {};
+    this.tempGuildData = new Map();
 
     // Add some subcommands to the logger to allow cleaner code
     ["error", "warn", "debug", "cmd"].forEach(mode => this.logger[mode] = e => this.logger(e, mode));
@@ -60,94 +293,8 @@ module.exports = class Client extends Discord.Client {
     process.on("unhandledRejection", err => {
       this.logger.error(`Unhandled rejection: ${err}`);
     });
-    this.audio = {
-      youtubeAPI: require("googleapis").google.youtube({
-        version: "v3",
-        auth: this.config.youtubeClientToken,
-      }),
-      refreshSpotifyAccessToken: () => {
-        return new Promise(resolve => {
-          const client = this;
-          const req = require("https").request({
-            hostname: "accounts.spotify.com",
-            path: "/api/token",
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "Authorization": `Basic ${Buffer.from(this.config.spotifyClientId + ":" + this.config.spotifyClientSecret).toString("base64")}`
-            }
-          }, res => {
-            let data = "";
-            res.on("data", chunk => data += chunk);
-            res.on("end", () => {
-              client.config.spotifyAccessToken = JSON.parse(data).access_token;
-              resolve(true);
-            });
-          });
-          req.write("grant_type=client_credentials");
-          req.end();
-        });
-      },
-      Song: Song,
-      spotifyApi: endpoint => {
-        return new Promise(resolve => {
-          require("https").request({
-            hostname: "api.spotify.com",
-            path: endpoint,
-            headers: {
-              "Authorization": `Bearer ${this.config.spotifyAccessToken}`
-            }
-          }, response => {
-            let data = "";
-            response.on("data", chunk => data += chunk);
-            response.on("end", () => resolve(JSON.parse(data)));
-          }).end();
-        });
-      },
-      spotifyURI: tag => {
-        return new Promise(res => {
-          tag = tag.replace(/spotify:|user:/g, "");
-          var [type, id] = tag.split(":");
-          this.audio.spotifyApi(`/v1/${type}s/${id}`).then(response => {
-            const SongGroup = new Map();
-            const Tracks = [];
-            if (type === "track") {
-              Tracks.push(response);
-              SongGroup.metadata = {
-                type: "track"
-              };
-            } else {
-              // This else statement is actually only considering 'playlist' and 'album' types
-              type === "album" ? response.tracks.items.forEach(i => Tracks.push(i) && SongGroup.set(i.id, {})) : response.tracks.items.forEach(i => Tracks.push(i.track) && SongGroup.set(i.id, {}));
-              delete response.tracks;
-              SongGroup.metadata = response;
-            }
-            SongGroup.ytIds = new Object();
-            Promise.all(Tracks.map(async track => {
-              const results = await this.audio.youtubeAPI.search.list({
-                part: "id, snippet",
-                q: `${type === "album" ? SongGroup.metadata.name : track.artists[0].name} ${track.name}`,
-                type: "video",
-                safeSearch: "none"
-              });
-              return SongGroup.ytIds[results.data.items[0].id.videoId] = SongGroup.set(track.id, new this.audio.Song(track, results.data.items[0])).get(track.id);
-            })).then(async () => {
-              let ytDetails = [];
-              while (ytDetails.length < SongGroup.size) {
-                const response = await this.audio.youtubeAPI.videos.list({
-                  part: "contentDetails",
-                  id: Array.from(SongGroup.values()).map(i => i.video.id.videoId).slice(ytDetails.length, ytDetails.length + 50).join(",")
-                });
-                ytDetails = ytDetails.concat(response.data.items);
-              }
-              ytDetails.forEach(details => SongGroup.ytIds[details.id].video.contentDetails = details.contentDetails);
-              res(SongGroup);
-            });
-          });
-        });
-      }
-    };
-    this.audio.refreshSpotifyAccessToken();
+
+    this.AudioModule = new AudioModule(this);
   }
 
   /**

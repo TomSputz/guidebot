@@ -9,8 +9,8 @@ module.exports = async (client, message) => {
   
   // Grab the data object for the guild, used for easy reference
   const data = message.guild ? client.guildData.has(message.guild.id) ? client.guildData.get(message.guild.id) : (client.guildData.set(message.guild.id, {})).get(message.guild.id) : {};
-  const tempData = client.tempGuildData[message.guild.id] ? client.tempGuildData[message.guild.id] : client.tempGuildData[message.guild.id] = {};
-  if (tempData.queue) console.log(tempData.queue.values().next().value);
+  const tempData = client.tempGuildData.has(message.guild.id) ? client.tempGuildData.get(message.guild.id) : client.tempGuildData.set(message.guild.id, {}).get(message.guild.id);
+  
   // Grab the settings for this server from Enmap.
   // If there is no guild, get default conf (DMs)
   const settings = message.settings = message.guild ? message.guild.getSettings() : client.config.defaultSettings;
